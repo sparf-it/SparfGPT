@@ -2698,6 +2698,11 @@ useEffect(() => {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (isSidebarOpen) {
+                toggleSidebar();
+              }
+            }}
             placeholder={
               isPdfMode ? `Ask a question about ${activePdfFileName}` :
               isWordMode ? `Ask a question about ${activeWordFileName}` :

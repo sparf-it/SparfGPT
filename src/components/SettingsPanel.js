@@ -38,6 +38,14 @@ const SettingsPanel = ({ onClose }) => {
     toggleSetting(setting);
   };
   
+  const handleToggleApiDetails = () => {
+    const newValue = !settings.showRequestJson;
+    updateSettings({ 
+      showRequestJson: newValue,
+      showApiDetails: newValue 
+    });
+  };
+  
   const handleModelChange = (e) => {
     const newModel = e.target.value;
     if (newModel === 'gpt-5-nano') {
@@ -366,7 +374,6 @@ const SettingsPanel = ({ onClose }) => {
             )}
             <div className="api-key-help">
               <p>Your API key is stored locally in your browser and is never sent to our servers.</p>
-              <p>You can get your API key from your instructor.</p>
             </div>
           </div>
         </section>
@@ -432,7 +439,7 @@ const SettingsPanel = ({ onClose }) => {
                   <span>Creative</span>
                 </div>
                 <div className="setting-description">
-                  Controls randomness: Lower values are more deterministic and focused, higher values are more creative and varied.
+                  <b>Controls response randomness:</b> Lower values make the output more deterministic and focused, while higher values increase creativity and variety.
                 </div>
               </div>
               
@@ -452,7 +459,7 @@ const SettingsPanel = ({ onClose }) => {
                   <span>1</span>
                 </div>
                 <div className="setting-description">
-                  Controls diversity via nucleus sampling: 0.1 means only the tokens comprising the top 10% probability mass are considered.
+                  <b>Limits token selection by cumulative probability:</b> A value of 0.1 means the model only chooses from the top 10% most likely tokens, cutting off the less predictable options.
                 </div>
               </div>
              
@@ -475,7 +482,7 @@ const SettingsPanel = ({ onClose }) => {
               <span>2048</span>
             </div>
             <div className="setting-description">
-              The maximum number of tokens to generate. One token is roughly 4 characters or 0.75 words. Higher values allow for longer responses.
+              <b>Sets the maximum response length:</b> Defines the upper limit for generated tokens (1 token is roughly 4 characters or 0.75 words). Higher values permit longer completions.
             </div>
           </div>
         </section>
@@ -494,7 +501,47 @@ const SettingsPanel = ({ onClose }) => {
             </div>
           </div>
         </section>
-        
+           <section>
+          <h4>Display Settings</h4>
+          
+          {/* Theme selection removed */}
+          
+          <div className="setting-group">
+            <label className="toggle-label">
+              <span>Show Tokens  </span>
+              <div className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.showTokens}
+                  onChange={() => handleToggle('showTokens')}
+                />
+                <span className="toggle-slider"></span>
+              </div>
+            </label>
+            <div className="setting-help-text">
+               Display the API tokens used for the AI prompt
+            </div>
+          </div>
+          
+          <div className="setting-group">
+            <label className="toggle-label">
+              <span>Show API Details </span>
+              <div className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.showRequestJson && settings.showApiDetails}
+                  onChange={handleToggleApiDetails}
+                />
+                <span className="toggle-slider"></span>
+              </div>
+            </label>
+            <div className="setting-help-text">
+              When enabled, shows the request JSON sent to the API and the response details received from the API.
+            </div>
+          </div>
+          
+
+        </section>
         <section>
           <h4>Voice Settings</h4>
           
@@ -529,64 +576,7 @@ const SettingsPanel = ({ onClose }) => {
           </div>
         </section>
         
-        <section>
-          <h4>Display Settings</h4>
-          
-          {/* Theme selection removed */}
-          
-          <div className="setting-group">
-            <label className="toggle-label">
-              <span>Show Tokens  </span>
-              <div className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={settings.showTokens}
-                  onChange={() => handleToggle('showTokens')}
-                />
-                <span className="toggle-slider"></span>
-              </div>
-            </label>
-            <div className="setting-help-text">
-               Display the API tokens used for the AI prompt
-            </div>
-          </div>
-          
-          <div className="setting-group">
-            <label className="toggle-label">
-              <span>Show Request JSON </span>
-              <div className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={settings.showRequestJson}
-                  onChange={() => handleToggle('showRequestJson')}
-                />
-                <span className="toggle-slider"></span>
-              </div>
-            </label>
-            <div className="setting-help-text">
-              When enabled, shows the actual JSON sent to the API.
-            </div>
-          </div>
-
-          <div className="setting-group">
-            <label className="toggle-label">
-              <span>Show Response Details </span>
-              <div className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={settings.showApiDetails}
-                  onChange={() => handleToggle('showApiDetails')}
-                />
-                <span className="toggle-slider"></span>
-              </div>
-            </label>
-            <div className="setting-help-text">
-              When enabled, shows the actual JSON received from the API.
-            </div>
-          </div>
-          
-
-        </section>
+     
         
         <section className="settings-reset">
           <h4>Settings Management</h4>

@@ -3,7 +3,7 @@ import { ConversationContext } from '../context/ConversationContext';
 // We'll use SettingsContext later when we implement theme switching
 // import { SettingsContext } from '../context/SettingsContext';
 import './Sidebar.css';
-import { FiPlus, FiSettings, FiTrash2, FiEdit2, FiMenu } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiMenu } from 'react-icons/fi';
 import ConfirmationModal from './ConfirmationModal';
 
 const Sidebar = ({ isOpen, toggleSidebar, toggleSettings }) => {
@@ -124,15 +124,6 @@ const Sidebar = ({ isOpen, toggleSidebar, toggleSettings }) => {
               )}
             </div>
           ))}
-        </div>
-        
-        <div className="sidebar-footer">
-          <button 
-            className="settings-btn" 
-            onClick={toggleSettings}
-          >
-            <FiSettings /> Settings
-          </button>
         </div>
       </div>
       
