@@ -1,0 +1,72 @@
+/* ─── App Shell — Aurora Background ─────────────────────────────────────────── */
+.app {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-deep);
+  position: relative;
+  isolation: isolate;
+}
+
+/* Aurora animated blobs behind everything */
+.app::before,
+.app::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.5;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.app::before {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, transparent 70%);
+  top: -15%;
+  left: -10%;
+  animation: aurora 25s ease-in-out infinite;
+}
+
+.app::after {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(0, 35, 102, 0.06) 0%, transparent 70%);
+  bottom: -10%;
+  right: -5%;
+  animation: aurora 30s ease-in-out infinite reverse;
+}
+
+/* Third aurora blob via the app's children wrapper */
+.aurora-blob {
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 35, 102, 0.05) 0%, transparent 70%);
+  top: 40%;
+  left: 50%;
+  filter: blur(100px);
+  opacity: 0.3;
+  z-index: 0;
+  pointer-events: none;
+  animation: aurora 20s ease-in-out infinite 5s;
+}
+
+/* Ensure children sit above aurora */
+.app > *:not(.aurora-blob) {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .app {
+    flex-direction: row;
+    position: relative;
+  }
+  .app::before { width: 350px; height: 350px; }
+  .app::after  { width: 300px; height: 300px; }
+}
