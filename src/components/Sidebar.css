@@ -1,3 +1,8 @@
+/* ─── Sidebar Wrapper ─────────────────────────────────────────────────────────── */
+.sidebar-wrapper {
+  position: relative;
+}
+
 /* ─── Floating Glass Sidebar ─────────────────────────────────────────────────── */
 .sidebar {
   width: 280px;
@@ -8,26 +13,88 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--sidebar-border);
-  border-right: none;
-  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
-  transition: transform var(--transition-slow), opacity var(--transition-slow),
-              width var(--transition-slow);
+  border-left: none;
+  border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+  transition: transform var(--transition-slow), opacity var(--transition-slow);
   overflow: hidden;
   flex-shrink: 0;
-  height: calc(100vh - 24px);
-  margin: 12px 0 12px 0;
-  position: relative;
+  height: calc(100% - 24px);
+  margin: 12px 0 12px 12px;
+  position: absolute;
+  left: 0;
+  top: 0;
   z-index: 100;
   box-shadow: var(--shadow-lg), inset 0 0 0 1px rgba(255,255,255,0.03);
 }
 
-.sidebar.closed {
+.sidebar-wrapper.closed .sidebar {
   width: 0;
   min-width: 0;
   opacity: 0;
-  transform: translateX(100%);
-  margin: 12px 0;
+  transform: translateX(-100%);
+  margin: 0 0 12px 0;
   pointer-events: none;
+}
+
+/* ─── Sidebar Toggle Bar ─────────────────────────────────────────────────────── */
+.sidebar-toggle-bar {
+  position: absolute;
+  left: 292px;
+  top: 12px;
+  bottom: 12px;
+  width: 8px;
+  background: transparent;
+  cursor: pointer;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left var(--transition-slow), all var(--transition-fast);
+  border-radius: var(--radius-md);
+}
+
+.sidebar-wrapper.closed .sidebar-toggle-bar {
+  left: 12px;
+}
+
+.sidebar-toggle-bar:hover {
+  background: rgba(13,149,136,0.08);
+}
+
+.sidebar-toggle-handle {
+  width: 20px;
+  height: 2px;
+  background: rgba(13,149,136,0.5);
+  border-radius: 2px;
+  position: relative;
+  transition: all var(--transition-fast);
+  transform: rotate(90deg);
+}
+
+.sidebar-toggle-handle::before,
+.sidebar-toggle-handle::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 2px;
+  background: rgba(13,149,136,0.5);
+  border-radius: 2px;
+  left: 0;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-toggle-handle::before {
+  top: -6px;
+}
+
+.sidebar-toggle-handle::after {
+  top: 6px;
+}
+
+.sidebar-toggle-bar:hover .sidebar-toggle-handle,
+.sidebar-toggle-bar:hover .sidebar-toggle-handle::before,
+.sidebar-toggle-bar:hover .sidebar-toggle-handle::after {
+  background: rgba(13,149,136,0.8);
 }
 
 /* ─── Header ─────────────────────────────────────────────────────────────────── */
@@ -302,8 +369,8 @@
 }
 
 .open-sidebar-btn {
-  position: fixed;
-  top: 20px;
+  position: absolute;
+  top: 22px;
   left: 16px;
   z-index: 150;
   color: var(--text-secondary);
@@ -334,19 +401,19 @@
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
-    right: 0;
+    left: 0;
     top: 0;
     width: 85%;
     max-width: 320px;
     height: 100vh;
     margin: 0;
-    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+    border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
     transform: translateX(0);
-    box-shadow: var(--shadow-xl), -40px 0 80px rgba(0,0,0,0.4);
+    box-shadow: var(--shadow-xl), 40px 0 80px rgba(0,0,0,0.4);
   }
 
   .sidebar.closed {
-    transform: translateX(100%);
+    transform: translateX(-100%);
     width: 85%;
     min-width: unset;
   }

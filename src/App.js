@@ -78,11 +78,13 @@ function App() {
             toggleSidebar={toggleSidebar} 
             showSettings={showSettings}
             toggleSettings={toggleSettings}
-          />
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            toggleSidebar={toggleSidebar} 
-            toggleSettings={toggleSettings}
+            sidebar={
+              <Sidebar 
+                isOpen={isSidebarOpen} 
+                toggleSidebar={toggleSidebar} 
+                toggleSettings={toggleSettings}
+              />
+            }
           />
         </div>
       </ConversationProvider>

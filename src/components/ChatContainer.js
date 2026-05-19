@@ -21,9 +21,9 @@ import FileUploader from './FileUploader';
 import SparfLogo from '../assets/Sparf-Logo.webp';
 // Document handling is now integrated into the FileUploader component
 import './ChatContainer.css';
-import { FiSend, FiPaperclip, FiX, FiSquare, FiUpload, FiFile, FiMenu, FiSettings } from 'react-icons/fi';
+import { FiSend, FiPaperclip, FiX, FiSquare, FiUpload, FiFile, FiMenu, FiSettings, FiPlus } from 'react-icons/fi';
 
-const ChatContainer = ({ isSidebarOpen, toggleSidebar, showSettings, toggleSettings }) => {
+const ChatContainer = ({ isSidebarOpen, toggleSidebar, showSettings, toggleSettings, sidebar }) => {
   // Keep track of the last processed image URL to prevent duplicates
   const lastProcessedImage = useRef(null);
   const { 
@@ -40,7 +40,8 @@ const ChatContainer = ({ isSidebarOpen, toggleSidebar, showSettings, toggleSetti
     removeContextFileFromConversation,
     forceConversationUpdate,
     currentConversation,
-    setConversations
+    setConversations,
+    createNewConversation
   } = useContext(ConversationContext);
   
   const { settings } = useContext(SettingsContext);
@@ -364,6 +365,28 @@ useEffect(() => {
       
       // Add message to the current conversation
       addMessageToConversation(newUserMessage);
+      
+      // Auto-generate title using AI if this is the first message in a new conversation
+      if (currentConversation?.messages?.length === 0 && currentConversation?.title === 'New Conversation') {
+        console.log('Generating AI title from first user message:', trimmedMessage);
+        // Generate title asynchronously without blocking
+        (async () => {
+          try {
+            const generatedTitle = await generateConversationTitle(trimmedMessage, '');
+            console.log('AI generated title from user message:', generatedTitle);
+            updateConversationTitle(currentConversationId, generatedTitle);
+            forceConversationUpdate();
+          } catch (error) {
+            console.error('Error generating title from user message:', error);
+            // Fallback to simple title if AI generation fails
+            const simpleTitle = trimmedMessage.length > 50 
+              ? trimmedMessage.substring(0, 47) + '...' 
+              : trimmedMessage;
+            updateConversationTitle(currentConversationId, simpleTitle);
+            forceConversationUpdate();
+          }
+        })();
+      }
       
       // Force UI update after adding user message
       forceConversationUpdate();
@@ -694,10 +717,13 @@ useEffect(() => {
       // Auto-generate title after the very first assistant response
       setTimeout(() => {
         const latestConv = getCurrentConversation();
+        console.log('Auto-title check - Current conversation:', latestConv?.title, 'Messages:', latestConv?.messages?.length);
         if (latestConv) {
           const userMsgs = latestConv.messages.filter(m => m.role === 'user');
           const assistantMsgs = latestConv.messages.filter(m => m.role === 'assistant' && m.content && m.content.length > 0);
-          if (userMsgs.length === 1 && assistantMsgs.length >= 1) {
+          console.log('Auto-title check - User msgs:', userMsgs.length, 'Assistant msgs:', assistantMsgs.length);
+          if (userMsgs.length === 1 && assistantMsgs.length >= 1 && latestConv.title === 'New Conversation') {
+            console.log('Triggering automatic title generation...');
             handleGenerateTitle();
           }
         }
@@ -1200,10 +1226,13 @@ useEffect(() => {
           // Auto-generate title after the very first assistant response
           setTimeout(() => {
             const latestConv = getCurrentConversation();
+            console.log('Auto-title check (image) - Current conversation:', latestConv?.title, 'Messages:', latestConv?.messages?.length);
             if (latestConv) {
               const userMsgs = latestConv.messages.filter(m => m.role === 'user');
               const assistantMsgs = latestConv.messages.filter(m => m.role === 'assistant' && m.content && m.content.length > 0);
-              if (userMsgs.length === 1 && assistantMsgs.length >= 1) {
+              console.log('Auto-title check (image) - User msgs:', userMsgs.length, 'Assistant msgs:', assistantMsgs.length);
+              if (userMsgs.length === 1 && assistantMsgs.length >= 1 && latestConv.title === 'New Conversation') {
+                console.log('Triggering automatic title generation (image)...');
                 handleGenerateTitle();
               }
             }
@@ -1379,18 +1408,21 @@ useEffect(() => {
       
       // Auto-generate a conversation title after the first exchange in a new chat
       const latestConversation = typeof getCurrentConversation === 'function' ? getCurrentConversation() : null;
+      console.log('Auto-title check (document) - Current conversation:', latestConversation?.title, 'Messages:', latestConversation?.messages?.length);
       if (
         latestConversation &&
         latestConversation.title === 'New Conversation'
       ) {
         const userMessagesCount = latestConversation.messages?.filter(msg => msg.role === 'user').length || 0;
         const assistantMessagesCount = latestConversation.messages?.filter(msg => msg.role === 'assistant').length || 0;
+        console.log('Auto-title check (document) - User msgs:', userMessagesCount, 'Assistant msgs:', assistantMessagesCount, 'isGeneratingTitle:', isGeneratingTitle);
 
         if (
           userMessagesCount === 1 &&
           assistantMessagesCount === 1 &&
           !isGeneratingTitle
         ) {
+          console.log('Triggering automatic title generation (document)...');
           handleGenerateTitle();
         }
       }
@@ -2475,16 +2507,23 @@ useEffect(() => {
         <img src={SparfLogo} alt="Sparf IT" className="header-logo" />
         <div className="chat-title-container">
           <h2>{currentConversation?.title || 'New Conversation'}</h2>
-          {currentConversation?.messages?.length >= 2 && (
-            <button 
-              className="generate-title-btn"
-              onClick={handleGenerateTitle}
-              disabled={isGeneratingTitle}
-              title="Generate a title based on conversation content"
-            >
-              {isGeneratingTitle ? 'Generating...' : 'Generate Title'}
-            </button>
-          )}
+        </div>
+        <div className="chat-header-actions">
+          <button
+            className="model-indicator"
+            type="button"
+            onClick={handleToggleSettings}
+            title={`Current model: ${settings.model}`}
+          >
+            Model: {getModelDisplayName(settings.model)}
+          </button>
+          <button
+            className="new-chat-header-btn"
+            onClick={() => createNewConversation()}
+            title="Start a new conversation"
+          >
+            <FiPlus />
+          </button>
           <button
             className="hamburger-btn"
             onClick={toggleSidebar}
@@ -2501,20 +2540,13 @@ useEffect(() => {
             <FiSettings />
           </button>
         </div>
-        <div className="chat-header-actions">
-          <button
-            className="model-indicator"
-            type="button"
-            onClick={handleToggleSettings}
-            title={`Current model: ${settings.model}`}
-          >
-            Model: {getModelDisplayName(settings.model)}
-          </button>
-        </div>
         {/* API details now appear under assistant messages */}
       </div>
       
-      <div className="chat-messages" ref={chatMessagesRef}>
+      <div className="chat-main-layout">
+        {sidebar}
+        <div className="chat-content-area">
+          <div className="chat-messages" ref={chatMessagesRef}>
         <div className="chat-messages-content">
           {currentConversation?.messages?.length === 0 ? (
             <div className="empty-chat">
@@ -2795,6 +2827,8 @@ useEffect(() => {
       
       <div className="copyright-footer">
         <p>Copyright {new Date().getFullYear()} Sparf IT</p> 
+      </div>
+        </div>
       </div>
     </div>
   );

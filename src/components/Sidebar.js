@@ -3,7 +3,7 @@ import { ConversationContext } from '../context/ConversationContext';
 // We'll use SettingsContext later when we implement theme switching
 // import { SettingsContext } from '../context/SettingsContext';
 import './Sidebar.css';
-import { FiPlus, FiTrash2, FiEdit2, FiMenu } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2 } from 'react-icons/fi';
 import ConfirmationModal from './ConfirmationModal';
 
 const Sidebar = ({ isOpen, toggleSidebar, toggleSettings }) => {
@@ -82,8 +82,12 @@ const Sidebar = ({ isOpen, toggleSidebar, toggleSettings }) => {
 
   return (
     <>
-      <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
+      <div className={`sidebar-wrapper ${isOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-toggle-bar" onClick={toggleSidebar}>
+          <div className="sidebar-toggle-handle"></div>
+        </div>
         
+        <div className="sidebar">
         <button className="new-chat-btn" onClick={handleNewChat}>
           <FiPlus /> New Chat
         </button>
@@ -126,12 +130,7 @@ const Sidebar = ({ isOpen, toggleSidebar, toggleSettings }) => {
           ))}
         </div>
       </div>
-      
-      {!isOpen && (
-        <button className="open-sidebar-btn" onClick={toggleSidebar}>
-          <FiMenu />
-        </button>
-      )}
+      </div>
 
       <ConfirmationModal
         isOpen={showDeleteModal}
