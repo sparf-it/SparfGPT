@@ -237,17 +237,16 @@ export const classifyIntentWithAI = async (input, context = {}) => {
     Based only on this input, should I generate an image or provide a text response?
     Answer with exactly one word: "image" or "text".`;
     
-    // Make request to OpenAI API
+    // Make request to OpenAI API via the /responses endpoint
     const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
+      'https://api.openai.com/v1/responses',
       {
-        model: 'gpt-4-turbo-preview', // or 'gpt-3.5-turbo' for a cheaper but less accurate option
-        messages: [
+        model: 'gpt-6-luna', // Using GPT-6 Luna for classification and extraction tasks
+        input: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3, // Lower temperature for more consistent results
-        max_tokens: 10 // We only need a short response
+        max_output_tokens: 100 // We only need a short response
       },
       {
         headers: {
@@ -256,9 +255,29 @@ export const classifyIntentWithAI = async (input, context = {}) => {
         }
       }
     );
-    
-    // Extract the classification from the response
-    const aiResponse = response.data.choices[0].message.content.trim().toLowerCase();
+
+    // Extract the classification from the /responses output format
+    let aiResponse = '';
+    if (typeof response.data.output_text === 'string') {
+      aiResponse = response.data.output_text;
+    } else if (Array.isArray(response.data.output)) {
+      const texts = [];
+      for (const item of response.data.output) {
+        const content = Array.isArray(item && item.content) ? item.content : [];
+        for (const part of content) {
+          if (!part) continue;
+          if (typeof part.text === 'string') {
+            texts.push(part.text);
+          } else if (part.output_text && typeof part.output_text.text === 'string') {
+            texts.push(part.output_text.text);
+          } else if (typeof part.output_text === 'string') {
+            texts.push(part.output_text);
+          }
+        }
+      }
+      aiResponse = texts.join('');
+    }
+    aiResponse = aiResponse.trim().toLowerCase();
     
     // Determine confidence based on how clear the response is
     let confidence = 0.85; // Base confidence for AI classification
@@ -463,7 +482,7 @@ export const generateConversationTitle = async (userMessage, assistantResponse) 
   if (!isApiKeySet()) {
     throw new Error('OpenAI API key is not set. Please add your API key in the settings.');
   }
-  
+
   try {
     // Create a prompt specifically for generating a title
     const messages = [
@@ -473,38 +492,57 @@ export const generateConversationTitle = async (userMessage, assistantResponse) 
       },
       {
         role: 'user',
-        content: `User asked: ${userMessage}`
-      },
-      {
-        role: 'assistant',
-        content: `I responded with: ${assistantResponse.substring(0, 500)}` // Limit to first 500 chars
+        content: assistantResponse
+          ? `User asked: ${userMessage}\n\nI responded with: ${assistantResponse.substring(0, 500)}`
+          : `User asked: ${userMessage}`
       },
       {
         role: 'user',
         content: 'Generate a short, concise title for this conversation (maximum 5 words).'
       }
     ];
-    
-    // Make a non-streaming request to GPT-3.5 Turbo
+
+    // Make a non-streaming request to GPT-6 Luna via the /responses endpoint
     const requestData = {
-      model: 'gpt-3.5-turbo',
-      messages,
-      temperature: 0.7,
-      max_tokens: 20, // Keep it short
-      top_p: 1
+      model: 'gpt-6-luna',
+      input: messages,
+      max_output_tokens: 100 // Keep it short
     };
-    
-    const response = await openaiApi.post('/chat/completions', requestData);
-    
-    // Extract the title from the response
-    const title = response.data.choices[0].message.content.trim();
-    
+
+    const response = await openaiApi.post('/responses', requestData);
+
+    // Extract the title from the /responses output format
+    let title = '';
+    if (typeof response.data.output_text === 'string') {
+      title = response.data.output_text;
+    } else if (Array.isArray(response.data.output)) {
+      const texts = [];
+      for (const item of response.data.output) {
+        const content = Array.isArray(item && item.content) ? item.content : [];
+        for (const part of content) {
+          if (!part) continue;
+          if (typeof part.text === 'string') {
+            texts.push(part.text);
+          } else if (part.output_text && typeof part.output_text.text === 'string') {
+            texts.push(part.output_text.text);
+          } else if (typeof part.output_text === 'string') {
+            texts.push(part.output_text);
+          }
+        }
+      }
+      title = texts.join('');
+    }
+
+    if (!title) {
+      throw new Error('Invalid response from API');
+    }
+
     // Remove any quotes that might be in the response
-    return title.replace(/["']/g, '');
+    return title.trim().replace(/["']/g, '');
   } catch (error) {
     console.error('Error generating conversation title:', error);
-    // Return a fallback title based on the first few words of the response
-    const fallbackTitle = assistantResponse.split('.')[0].split('\n')[0];
+    // Return a fallback title based on the user message
+    const fallbackTitle = userMessage.split('.')[0].split('\n')[0];
     return fallbackTitle.length > 30 ? fallbackTitle.substring(0, 27) + '...' : fallbackTitle;
   }
 };
@@ -537,10 +575,10 @@ export const getOpenAIModels = async () => {
  * @param {number} presencePenalty - Presence penalty for generation
  * @param {Function} onStreamUpdate - Callback for streaming updates (optional)
  * @param {AbortSignal} abortSignal - Signal to abort the request (optional)
- * @param {Object} gpt5Options - GPT-5 specific options (reasoningEffort)
+ * @param {Object} reasoningOptions - Reasoning options (reasoningEffort)
  * @returns {Promise<Object>} - The response object
  */
-const generateOpenAIResponseImplementation = async (messages, model, temperature, topP, maxTokens, frequencyPenalty = 0, presencePenalty = 0, onStreamUpdate = null, abortSignal = null, gpt5Options = {}) => {
+const generateOpenAIResponseImplementation = async (messages, model, temperature, topP, maxTokens, frequencyPenalty = 0, presencePenalty = 0, onStreamUpdate = null, abortSignal = null, reasoningOptions = {}) => {
   console.log('Generating response with model:', model, 'streaming:', !!onStreamUpdate);
   
   // Validate API key
@@ -641,21 +679,25 @@ const generateOpenAIResponseImplementation = async (messages, model, temperature
       input: enhancedMessages
     };
     
-    // Configure parameters based on model type for the Responses API
-    if (typeof model === 'string' && model.startsWith('gpt-5')) {
-      // GPT-5 models use reasoning configuration and max_output_tokens
-      requestData.max_output_tokens = maxTokens || 2048;
-      const reasoningConfig = {};
-      if (gpt5Options && gpt5Options.reasoningEffort) {
-        reasoningConfig.effort = gpt5Options.reasoningEffort;
-      }
+    // Configure parameters for the Responses API
+    // Always set max_output_tokens
+    requestData.max_output_tokens = maxTokens || 2048;
+
+    // Always set reasoning configuration
+    const reasoningConfig = {};
+    if (reasoningOptions && reasoningOptions.reasoningEffort) {
+      reasoningConfig.effort = reasoningOptions.reasoningEffort;
+    }
+    // Only include summary when reasoning is not "none"
+    if (reasoningOptions && reasoningOptions.reasoningEffort !== 'none') {
       reasoningConfig.summary = 'detailed';
-      requestData.reasoning = reasoningConfig;
-    } else {
-      // Other models use standard sampling parameters
+    }
+    requestData.reasoning = reasoningConfig;
+
+    // Only set temperature and top_p when reasoning is set to "none"
+    if (reasoningOptions && reasoningOptions.reasoningEffort === 'none') {
       requestData.temperature = temperature;
       requestData.top_p = topP;
-      requestData.max_output_tokens = maxTokens || 2048;
     }
     
     // Determine if we should use streaming
@@ -766,9 +808,12 @@ const generateOpenAIResponseImplementation = async (messages, model, temperature
         return chunks.filter(Boolean);
       };
 
+      // Buffer for SSE data that may be split across stream chunks
+      let streamBuffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           // Streaming complete, send final update
           onStreamUpdate({
@@ -778,14 +823,20 @@ const generateOpenAIResponseImplementation = async (messages, model, temperature
           });
           break;
         }
-        
-        // Decode chunk and process it
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-        
+
+        // Decode chunk and append to buffer; only process complete lines
+        streamBuffer += decoder.decode(value, { stream: true });
+        const lines = streamBuffer.split('\n');
+        // Keep the last (possibly incomplete) line for the next iteration
+        streamBuffer = lines.pop() || '';
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
+          const trimmedLine = line.trim();
+          if (!trimmedLine) {
+            continue;
+          }
+          if (trimmedLine.startsWith('data: ')) {
+            const data = trimmedLine.slice(6).trim();
             
             if (data === '[DONE]') {
               continue;
@@ -1152,38 +1203,77 @@ export const enhanceImagePrompt = async (userPrompt, conversationHistory = []) =
     }
     
     // Create a more direct system prompt that explicitly instructs how to use the conversation
-    const systemPrompt = `You are an AI image prompt creator that enhances user requests into detailed DALL-E prompts.
+    const systemPrompt = `You are an expert image prompt engineer specializing in DALL-E 3 optimization.
 
-You have access to the following conversation history between a user and an AI assistant:
-
+CONVERSATION CONTEXT:
 ${formattedConversation ? formattedConversation : "[No previous conversation]"}
 
-Based on this conversation context and the user's image request, create a detailed, vivid image prompt.
-Make sure your prompt directly relates to both the conversation topic and the user's specific request.
-Include visual details, style, mood, and composition.
-Do not mention the conversation itself in the prompt.
-Your output will be sent directly to DALL-E, so format it as a complete, standalone prompt.`;
+YOUR TASK: Transform the user's request into a detailed, high-quality DALL-E 3 prompt.
 
-    // Create messages array with minimal format
-    const messages = [
+PROMPT ENHANCEMENT GUIDELINES:
+1. **Subject & Composition**: Clearly describe the main subject, its position, and framing
+2. **Visual Details**: Include specific details about colors, textures, materials, and lighting
+3. **Style & Medium**: Specify artistic style (photorealistic, illustration, 3D render, etc.)
+4. **Mood & Atmosphere**: Describe the emotional tone and ambiance
+5. **Technical Quality**: Add quality indicators (high resolution, detailed, professional)
+6. **Context Integration**: Use conversation history to add relevant context without explicitly mentioning it
+
+BEST PRACTICES:
+- Be specific and descriptive (avoid vague terms like "nice" or "good")
+- Use vivid, sensory language
+- Specify camera angles, perspectives, or viewpoints when relevant
+- Include lighting conditions (golden hour, studio lighting, dramatic shadows)
+- Mention aspect ratio or composition style if implied
+- Keep the prompt focused and coherent (200-300 words max)
+
+OUTPUT: A single, detailed prompt ready for DALL-E 3 (no explanations, just the prompt).`;
+
+    // Create input array with minimal format
+    const input = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Based on our conversation, create an image of: ${userPrompt}` }
     ];
-    
+
     const requestData = {
-      model: 'gpt-4.1',
-      messages,
-      temperature: 0.7, // Slightly lower temperature for more focused results
-      max_tokens: 300,
-      top_p: 1
+      model: 'gpt-6-sol',
+      input,
+      reasoning: {
+        effort: 'none' // Use none for prompt enhancement
+      },
+      max_output_tokens: 300
     };
-    
+
     console.log('Sending enhanced prompt request with conversation context');
-    const response = await openaiApi.post('/chat/completions', requestData);
-    const enhancedPrompt = response.data.choices[0].message.content.trim();
-    
+    const response = await openaiApi.post('/responses', requestData);
+
+    // Extract the enhanced prompt from the response
+    let enhancedPrompt = '';
+    if (typeof response.data.output_text === 'string') {
+      enhancedPrompt = response.data.output_text;
+    } else if (response.data.output && Array.isArray(response.data.output)) {
+      const texts = [];
+      for (const item of response.data.output) {
+        const content = Array.isArray(item && item.content) ? item.content : [];
+        for (const part of content) {
+          if (!part) continue;
+          if (typeof part.text === 'string') {
+            texts.push(part.text);
+          } else if (part.output_text && typeof part.output_text.text === 'string') {
+            texts.push(part.output_text.text);
+          } else if (typeof part.output_text === 'string') {
+            texts.push(part.output_text);
+          }
+        }
+      }
+      enhancedPrompt = texts.join('');
+    }
+
+    if (!enhancedPrompt) {
+      throw new Error('Could not extract enhanced prompt from response');
+    }
+
     console.log('Generated enhanced prompt with context:', enhancedPrompt.slice(0, 100) + '...');
-    return enhancedPrompt;
+    return enhancedPrompt.trim();
   } catch (error) {
     console.error('Error enhancing prompt with context:', error);
     // Fallback: add basic photo/cinematic enhancements
@@ -1207,7 +1297,7 @@ export const generateOpenAIImage = async (prompt, n = 1, size = '1024x1024', con
       prompt: enhancedPrompt,
       n,
       size,
-      model: "gpt-image-1-mini" // Explicitly specify gpt-image-1-mini
+      model: "gpt-image-2.6-flare" // Image generation model
     };
     
     const response = await openaiApi.post('/images/generations', requestData, { timeout: 120000 }); // 120s for image generation
@@ -1295,7 +1385,7 @@ export const uploadFileForContext = async (file) => {
  * @param {number} temperature - The temperature to use for generation
  * @returns {Promise<string>} - The answer to the question
  */
-export const answerFromPDF = async (question, relevantChunks, model = 'gpt-4o', temperature = 0.7) => {
+export const answerFromPDF = async (question, relevantChunks, model = 'gpt-6.1-terra', temperature = 0.7) => {
   if (!isApiKeySet()) {
     throw new Error('OpenAI API key is not set');
   }
@@ -1397,7 +1487,7 @@ export const answerFromPDF = async (question, relevantChunks, model = 'gpt-4o', 
  * @param {number} temperature - The temperature to use for generation
  * @returns {Promise<string>} - The answer to the question
  */
-export const answerFromWord = async (question, relevantChunks, model = 'gpt-4o', temperature = 0.7) => {
+export const answerFromWord = async (question, relevantChunks, model = 'gpt-6.1-terra', temperature = 0.7) => {
   if (!isApiKeySet()) {
     throw new Error('OpenAI API key is not set');
   }
@@ -1499,7 +1589,7 @@ export const answerFromWord = async (question, relevantChunks, model = 'gpt-4o',
  * @param {number} temperature - The temperature to use for generation
  * @returns {Promise<string>} - The answer to the question
  */
-export const answerFromExcel = async (question, relevantChunks, model = 'gpt-4o', temperature = 0.7) => {
+export const answerFromExcel = async (question, relevantChunks, model = 'gpt-6.1-terra', temperature = 0.7) => {
   if (!isApiKeySet()) {
     throw new Error('OpenAI API key is not set');
   }
@@ -1603,7 +1693,7 @@ export const answerFromExcel = async (question, relevantChunks, model = 'gpt-4o'
  * @param {number} temperature - The temperature to use for generation
  * @returns {Promise<Object>} - The answer to the question or information about a generated image
  */
-export const answerFromImage = async (question, relevantChunks, model = 'gpt-4o', temperature = 0.7) => {
+export const answerFromImage = async (question, relevantChunks, model = 'gpt-6.1-terra', temperature = 0.7) => {
   if (!isApiKeySet()) {
     throw new Error('OpenAI API key is not set');
   }
@@ -1668,7 +1758,7 @@ export const answerFromImage = async (question, relevantChunks, model = 'gpt-4o'
     };
     
     const intentResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-6.1-sol',
       messages: [intentClassificationSystemMessage, intentClassificationUserMessage],
       temperature: 0.1,
       max_tokens: 20
@@ -1691,7 +1781,7 @@ export const answerFromImage = async (question, relevantChunks, model = 'gpt-4o'
       };
       
       const descriptionResponse = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-6.1-sol',
         messages: [
           descriptionExtractionMessage,
           { role: 'user', content: `Image analysis:\n\n${context}` }

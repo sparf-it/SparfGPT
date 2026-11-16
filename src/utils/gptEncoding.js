@@ -11,15 +11,18 @@ import React from 'react';
 // Base64 encoding of a minimal tiktoken vocabulary and merges
 // This is a stripped-down version that works in browsers
 const MODEL_TO_ENCODING = {
-  'gpt-5': 'cl100k_base',
-  'gpt-5-nano': 'cl100k_base',
-  'gpt-5.1': 'cl100k_base',
-  'gpt-5-mini': 'cl100k_base',
-  'gpt-4o': 'cl100k_base',
-  'gpt-4-turbo': 'cl100k_base',
-  'gpt-4': 'cl100k_base',
-  'gpt-4.1': 'cl100k_base',
-  'gpt-3.5-turbo': 'cl100k_base',
+  'gpt-6-astra': 'cl100k_base',
+  'gpt-6.1-sol': 'cl100k_base',
+  'gpt-6-sol': 'cl100k_base',
+  'gpt-6.1-terra': 'cl100k_base',
+  'gpt-6-luna': 'cl100k_base',
+  'gpt-5.6-sol': 'cl100k_base',
+  'gpt-5.5': 'cl100k_base',
+  'gpt-5.6-terra': 'cl100k_base',
+  'gpt-5.4': 'cl100k_base',
+  'gpt-5.4-mini': 'cl100k_base',
+  'gpt-5.6-luna': 'cl100k_base',
+  'gpt-5.2': 'cl100k_base',
   'text-davinci-003': 'p50k_base',
   'text-embedding-ada-002': 'cl100k_base'
 };
@@ -70,10 +73,10 @@ const getEncoder = async () => {
 /**
  * Encode text into tokens using the OpenAI tokenizer
  * @param {string} text - The text to encode
- * @param {string} model - The model to use for encoding (defaults to gpt-3.5-turbo)
+ * @param {string} model - The model to use for encoding (defaults to gpt-5.5)
  * @returns {Promise<Array>} - Array of token objects with id and text
  */
-export const encodeText = async (text, model = 'gpt-3.5-turbo') => {
+export const encodeText = async (text, model = 'gpt-5.5') => {
   if (!text) return [];
   
   try {
@@ -114,10 +117,10 @@ export const encodeText = async (text, model = 'gpt-3.5-turbo') => {
 /**
  * Count tokens in text using OpenAI's tokenizer
  * @param {string} text - The text to count tokens for
- * @param {string} model - The model to use for counting (defaults to gpt-3.5-turbo)
+ * @param {string} model - The model to use for counting (defaults to gpt-5.5)
  * @returns {Promise<number>} - The number of tokens
  */
-export const countTokens = async (text, model = 'gpt-3.5-turbo') => {
+export const countTokens = async (text, model = 'gpt-5.5') => {
   if (!text) return 0;
   
   try {

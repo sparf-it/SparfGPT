@@ -152,9 +152,9 @@ export const extractInfoFromImage = async (file) => {
             // Get the OpenAI client - use await since it's now async
             const openai = await getOpenAIClient();
             
-            // Use the GPT-4o Vision API to analyze the image
+            // Use the GPT-6.1 Terra Vision API to analyze the image
             const response = await openai.chat.completions.create({
-              model: "gpt-4o",
+              model: "gpt-6.1-terra",
               messages: [
                 {
                   role: "system",

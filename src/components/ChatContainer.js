@@ -17,6 +17,7 @@ import { enhancedChatResponse } from '../utils/chatResponseHelper';
 import { classifyIntent, classifyIntentWithAPI } from '../utils/intentClassifier';
 import ChatMessage from './ChatMessage';
 import SettingsPanel from './SettingsPanel';
+import ConfirmationModal from './ConfirmationModal';
 import FileUploader from './FileUploader';
 import SparfLogo from '../assets/Sparf-Logo.webp';
 // Document handling is now integrated into the FileUploader component
@@ -65,6 +66,7 @@ const ChatContainer = ({ isSidebarOpen, toggleSidebar, showSettings, toggleSetti
   const [showApiResponse, setShowApiResponse] = useState(false);
   const [error, setError] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState([]);
   const [streamController, setStreamController] = useState(null);
   // TTS functionality is controlled at the individual message level
@@ -208,6 +210,9 @@ useEffect(() => {
       // When conversation ID changes, clear the input field
       setInput('');
       setImagePrompt('');
+      setError(null);
+      setErrorMessage(null);
+      setShowApiKeyModal(false);
       
       // Make sure file uploader is closed when switching conversations
       // but preserve document context across conversations
@@ -259,7 +264,14 @@ useEffect(() => {
       window.removeEventListener('apiKeyChanged', handleCustomEvent);
     };
   }, []);
-  
+
+  // Show a popup when an API error indicates a missing or invalid API key
+  useEffect(() => {
+    if (error && /api key/i.test(error)) {
+      setShowApiKeyModal(true);
+    }
+  }, [error]);
+
   const scrollToBottom = () => {
     if (chatMessagesRef.current) {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
@@ -333,9 +345,9 @@ useEffect(() => {
       
       const { intent, confidence, source } = await classifyIntentWithAPI(trimmedMessage, conversationContext);
       console.log(`AI Intent classification: ${intent} (confidence: ${confidence}, source: ${source || 'not specified'})`);
-      
+
       // If the intent is for image generation with sufficient confidence, use the image generator
-      if (intent === 'image' && confidence >= 0.7) {
+      if (intent === 'image' && confidence >= 0.5) {
         // Set the image prompt and call the image generation handler
         setImagePrompt(trimmedMessage);
         handleGenerateImage(trimmedMessage);
@@ -697,10 +709,10 @@ useEffect(() => {
           }
         },
         controller.signal,
-        // GPT-5 specific options
-        settings.model && settings.model.startsWith('gpt-5') ? {
+        // Reasoning options
+        {
           reasoningEffort: settings.reasoningEffort
-        } : {}
+        }
       );
       
       // Set the API response for debugging
@@ -1339,10 +1351,10 @@ useEffect(() => {
         settings.presencePenalty,
         handleStreamUpdate, // Pass the streaming callback
         controller.signal, // Pass the abort signal
-        // GPT-5 specific options
-        settings.model && settings.model.startsWith('gpt-5') ? {
+        // Reasoning options
+        {
           reasoningEffort: settings.reasoningEffort
-        } : {}
+        }
       );
       
       // Save API response and request data for inspection
@@ -1857,11 +1869,10 @@ useEffect(() => {
                 settings.presencePenalty,
                 null, // onStreamUpdate (non-streaming)
                 null, // abortSignal
-                // GPT-5 specific options
-                settings.model && settings.model.startsWith('gpt-5') ? {
-                  verbosity: settings.verbosity,
+                // Reasoning options
+                {
                   reasoningEffort: settings.reasoningEffort
-                } : {}
+                }
               );
 
               // Extract assistant content from the Responses API wrapper
@@ -2603,6 +2614,19 @@ useEffect(() => {
       </div>
       
       {showSettings && <SettingsPanel onClose={handleToggleSettings} />}
+
+      <ConfirmationModal
+        isOpen={showApiKeyModal}
+        title="API Key Issue"
+        message="Your OpenAI API key is missing or invalid. Please check it in Settings."
+        confirmLabel="Open Settings"
+        cancelLabel="Dismiss"
+        onConfirm={() => {
+          setShowApiKeyModal(false);
+          if (!showSettings) handleToggleSettings();
+        }}
+        onCancel={() => setShowApiKeyModal(false)}
+      />
       
       {showFileUploader && (
         <FileUploader 

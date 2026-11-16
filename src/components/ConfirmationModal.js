@@ -2,7 +2,7 @@ import React from 'react';
 import './ConfirmationModal.css';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 
-const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
+const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel', showCancel = true }) => {
   if (!isOpen) return null;
 
   return (
@@ -13,7 +13,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
             <FiAlertTriangle className="modal-icon" />
             <h3>{title}</h3>
           </div>
-          <button className="modal-close" onClick={onCancel}>
+          <button className="modal-close-btn" onClick={onCancel}>
             <FiX />
           </button>
         </div>
@@ -21,11 +21,13 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
           <p>{message}</p>
         </div>
         <div className="modal-actions">
-          <button className="modal-cancel" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="modal-confirm" onClick={onConfirm}>
-            Confirm
+          {showCancel && (
+            <button className="modal-cancel-btn" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+          )}
+          <button className="modal-confirm-btn" onClick={onConfirm}>
+            {confirmLabel}
           </button>
         </div>
       </div>

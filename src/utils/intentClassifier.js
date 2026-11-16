@@ -61,32 +61,44 @@ export const classifyIntentWithAPI = async (input, conversationContext = {}) => 
     }
     
     // Build a context-aware system prompt
-    let systemPrompt = 'You are an expert classifier that determines if a user prompt is intended for image generation or text analysis.';
+    let systemPrompt = `You are an expert classifier that determines if a user prompt is intended for image generation or text analysis.
+
+CLASSIFICATION RULES:
+- "image" intent: User wants to CREATE, GENERATE, DRAW, PAINT, DESIGN, or VISUALIZE a new image
+- "text" intent: User wants information, analysis, explanation, or discussion
+
+KEY INDICATORS FOR IMAGE GENERATION:
+- Action verbs: "create", "generate", "draw", "make", "design", "paint", "show me", "visualize"
+- Descriptive requests: "a picture of", "an image of", "illustration of"
+- Artistic styles: "in the style of", "photorealistic", "cartoon", "sketch"
+- Specific visual details: colors, composition, lighting, perspective
+
+KEY INDICATORS FOR TEXT RESPONSE:
+- Question words: "what", "why", "how", "when", "where", "who"
+- Analysis requests: "explain", "describe", "tell me about", "analyze"
+- References to existing content: "this image", "the picture", "that photo"`;
     
     // Add context about image analysis mode if it exists
     if (conversationContext.isImageAnalysisMode === true) {
-      systemPrompt += ' IMPORTANT CONTEXT: The user has recently UPLOADED AN IMAGE for analysis. If they are asking about "this image" or "the image", they are referring to their uploaded image and want text analysis about it, NOT generation of a new image.';
+      systemPrompt += '\n\nIMPORTANT CONTEXT: The user has recently UPLOADED AN IMAGE for analysis. References to "this image", "the image", "the picture" mean their uploaded image and require TEXT analysis, NOT new image generation.';
     }
     
     // Add context about previously generated images
     if (conversationContext.lastMessageWasImage === true) {
-      systemPrompt += ' IMPORTANT CONTEXT: The last message in the conversation contained a generated image.';
+      systemPrompt += '\n\nIMPORTANT CONTEXT: The last message contained a generated image. Short follow-ups like "make it bigger", "change the color to blue", "add a sunset" likely mean generating a MODIFIED version of that image.';
     }
     
-    systemPrompt += ' Respond ONLY with a JSON object containing "intent" (either "image" or "text") and "confidence" (a float between 0 and 1).';
-    
-    // Add critical instructions for image vs. text classification
-    systemPrompt += ' "image" intent means the user wants to CREATE or GENERATE a new image. "text" intent means the user wants information, analysis, or to ask about an existing image.';
+    systemPrompt += '\n\nRespond ONLY with a JSON object: {"intent": "image" or "text", "confidence": 0.0-1.0, "reasoning": "brief explanation"}';
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // Using GPT-4o for better classification accuracy
-        messages: [
+        model: 'gpt-6-luna', // Using GPT-6 Luna for classification and extraction tasks
+        input: [
           {
             role: 'system',
             content: systemPrompt
@@ -96,8 +108,7 @@ export const classifyIntentWithAPI = async (input, conversationContext = {}) => 
             content: `Classify if this prompt is for image generation or text analysis: "${input}"`
           }
         ],
-        temperature: 0.1, // Using very low temperature for more deterministic results
-        max_tokens: 50
+        max_output_tokens: 500
       })
     });
 
@@ -106,12 +117,34 @@ export const classifyIntentWithAPI = async (input, conversationContext = {}) => 
     }
 
     const data = await response.json();
-    const assistantMessage = data.choices[0]?.message?.content;
-    
+
+    // Extract text from the /responses output format (handles several shapes)
+    let assistantMessage = '';
+    if (typeof data.output_text === 'string') {
+      assistantMessage = data.output_text;
+    } else if (Array.isArray(data.output)) {
+      const texts = [];
+      for (const item of data.output) {
+        const content = Array.isArray(item && item.content) ? item.content : [];
+        for (const part of content) {
+          if (!part) continue;
+          if (typeof part.text === 'string') {
+            texts.push(part.text);
+          } else if (part.output_text && typeof part.output_text.text === 'string') {
+            texts.push(part.output_text.text);
+          } else if (typeof part.output_text === 'string') {
+            texts.push(part.output_text);
+          }
+        }
+      }
+      assistantMessage = texts.join('');
+    }
+
     if (!assistantMessage) {
+      console.error('Unexpected /responses payload:', JSON.stringify(data).slice(0, 500));
       throw new Error('Invalid response from API');
     }
-    
+
     console.log('Raw AI classification response:', assistantMessage);
 
     // Extract JSON from the response
@@ -126,17 +159,21 @@ export const classifyIntentWithAPI = async (input, conversationContext = {}) => 
         const intentResult = {
           intent: result.intent.toLowerCase(),
           confidence: result.confidence,
+          reasoning: result.reasoning || '',
           source: 'ai'
         };
         console.log('AI determined intent:', intentResult.intent, 'with confidence:', intentResult.confidence);
-        
+        if (intentResult.reasoning) {
+          console.log('AI reasoning:', intentResult.reasoning);
+        }
+
         // Log a human-readable interpretation of the intent determination
         if (intentResult.intent === 'image') {
           console.log(`✅ AI determined this is ${intentResult.confidence >= 0.9 ? 'definitely' : 'likely'} an image generation request`);
         } else {
           console.log(`❌ AI determined this is ${intentResult.confidence >= 0.9 ? 'definitely' : 'likely'} NOT an image generation request`);
         }
-        
+
         return intentResult;
       } else {
         throw new Error('Invalid JSON structure');

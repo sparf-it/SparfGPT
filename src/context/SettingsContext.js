@@ -8,7 +8,7 @@ const DEFAULT_SETTINGS = {
   colorTokens: false,
   showApiDetails: false,
   showRequestJson: false,
-  model: 'gpt-4o',
+  model: 'gpt-6.1-terra',
   temperature: 0.7,
   topP: 1,
   maxTokens: 2048,

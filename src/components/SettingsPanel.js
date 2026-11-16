@@ -48,7 +48,7 @@ const SettingsPanel = ({ onClose }) => {
   
   const handleModelChange = (e) => {
     const newModel = e.target.value;
-    if (newModel === 'gpt-5-nano') {
+    if (newModel === 'gpt-6-luna') {
       updateSettings({ model: newModel, reasoningEffort: 'medium' });
     } else {
       updateSettings({ model: newModel });
@@ -401,27 +401,30 @@ const SettingsPanel = ({ onClose }) => {
             </div>
           </div>
           
-          {/* GPT-5 Specific Controls */}
-          {settings.model && settings.model.startsWith('gpt-5') && (
+          {/* GPT-5 and GPT-6 Specific Controls */}
+          {settings.model && (settings.model.startsWith('gpt-5') || settings.model.startsWith('gpt-6')) && (
             <>
               <div className="setting-group">
                 <label>Reasoning Effort</label>
                 <select value={settings.reasoningEffort || 'medium'} onChange={handleReasoningEffortChange}>
+                  {['gpt-6-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.5', 'gpt-5.6-terra', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.6-luna', 'gpt-5.2'].includes(settings.model) && (
+                    <option value="none">None - Use temperature instead</option>
+                  )}
                   <option value="low">Low - Fast responses, minimal reasoning</option>
                   <option value="medium">Medium - Balanced reasoning (default)</option>
-                  {settings.model !== 'gpt-5-nano' && (
+                  {settings.model !== 'gpt-6-luna' && (
                     <option value="high">High - Deep thinking, thorough analysis</option>
                   )}
                 </select>
                 <div className="setting-description">
-                  Controls the model's reasoning depth. Minimal for quick tasks, high for complex problem-solving that requires deep thinking.
+                  Controls the model's reasoning depth. When set to "None", you can use temperature to control randomness instead.
                 </div>
-              </div>            
+              </div>
             </>
           )}
           
-          {/* Hide temperature, top_p, and frequency_penalty for GPT-5 */}
-          {!(settings.model && settings.model.startsWith('gpt-5')) && (
+          {/* Temperature and Top P: only available when reasoning is set to "none" */}
+          {settings.reasoningEffort === 'none' && (
             <>
               <div className="setting-group">
                 <label>Temperature: {settings.temperature !== undefined ? settings.temperature.toFixed(1) : '0.7'}</label>
@@ -442,7 +445,7 @@ const SettingsPanel = ({ onClose }) => {
                   <b>Controls response randomness:</b> Lower values make the output more deterministic and focused, while higher values increase creativity and variety.
                 </div>
               </div>
-              
+
               <div className="setting-group">
                 <label>Top P: {settings.topP !== undefined ? settings.topP.toFixed(2) : '1.00'}</label>
                 <input
@@ -462,7 +465,6 @@ const SettingsPanel = ({ onClose }) => {
                   <b>Limits token selection by cumulative probability:</b> A value of 0.1 means the model only chooses from the top 10% most likely tokens, cutting off the less predictable options.
                 </div>
               </div>
-             
             </>
           )}
           
