@@ -1,16 +1,6 @@
 ### Build the deployment package
 npm run build
 
-### to Run linting
-npm run lint
-
-### to fix linting issues
-npm run lint:fix  
-
-
-
-
-
 
 # OpenAI Chat Interface
 
